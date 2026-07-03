@@ -1,0 +1,165 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlserver"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id                    String   @id @default(uuid()) @db.VarChar(36)
+  name                  String   @db.VarChar(255)
+  email                 String   @unique @db.VarChar(255)
+  mobile                String   @unique @db.VarChar(20)
+  passwordHash          String   @db.VarChar(500)
+  vehicleNumber         String   @db.VarChar(50)
+  role                  String   @db.VarChar(50) @default("DRIVER")
+  isActive              Boolean  @default(true)
+  refreshToken          String?  @db.VarChar(500)
+  refreshTokenExpiryAt  DateTime?
+  lastLoginAt           DateTime?
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+
+  // Relations
+  pickups               Pickup[]
+  attendances           Attendance[]
+  trips                 Trip[]
+  files                 File[]
+
+  @@index([email])
+  @@index([mobile])
+  @@index([isActive])
+}
+
+model Pickup {
+  id                    String   @id @default(uuid()) @db.VarChar(36)
+  pickupNumber          String   @unique @db.VarChar(50)
+  customerName          String   @db.VarChar(255)
+  mobileNumber          String   @db.VarChar(20)
+  pickupAddress         String   @db.Text
+  deliveryAddress       String   @db.Text
+  materialType          String   @db.VarChar(100)
+  weight                Decimal  @db.Decimal(10, 2)
+  deliveryDate          DateTime
+  status                String   @db.VarChar(50) @default("PENDING")
+  remarks               String?  @db.Text
+  pickupImagePath       String?  @db.VarChar(500)
+  createdBy             String   @db.VarChar(36)
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+
+  // Relations
+  createdByUser         User     @relation(fields: [createdBy], references: [id])
+  deliveries            Delivery[]
+  files                 File[]
+
+  @@index([pickupNumber])
+  @@index([status])
+  @@index([createdBy])
+  @@index([deliveryDate])
+}
+
+model Delivery {
+  id                    String   @id @default(uuid()) @db.VarChar(36)
+  deliveryNumber        String   @unique @db.VarChar(50)
+  pickupId              String   @db.VarChar(36)
+  status                String   @db.VarChar(50) @default("PENDING")
+  remarks               String?  @db.Text
+  deliveryImagePath     String?  @db.VarChar(500)
+  signatureImagePath    String?  @db.VarChar(500)
+  deliveredAt           DateTime?
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+
+  // Relations
+  pickup                Pickup   @relation(fields: [pickupId], references: [id], onDelete: Cascade)
+  files                 File[]
+
+  @@index([deliveryNumber])
+  @@index([pickupId])
+  @@index([status])
+}
+
+model Attendance {
+  id                    String   @id @default(uuid()) @db.VarChar(36)
+  userId                String   @db.VarChar(36)
+  checkInTime           DateTime
+  checkOutTime          DateTime?
+  checkInLatitude       Decimal  @db.Decimal(10, 8)
+  checkInLongitude      Decimal  @db.Decimal(11, 8)
+  checkOutLatitude      Decimal? @db.Decimal(10, 8)
+  checkOutLongitude     Decimal? @db.Decimal(11, 8)
+  checkInAddress        String?  @db.Text
+  checkOutAddress       String?  @db.Text
+  selfieImagePath       String?  @db.VarChar(500)
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+
+  // Relations
+  user                  User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  files                 File[]
+
+  @@index([userId])
+  @@index([checkInTime])
+}
+
+model Trip {
+  id                    String   @id @default(uuid()) @db.VarChar(36)
+  userId                String   @db.VarChar(36)
+  vehicleNumber         String   @db.VarChar(50)
+  tripDate              DateTime
+  openingMeter          Decimal  @db.Decimal(10, 2)
+  closingMeter          Decimal?  @db.Decimal(10, 2)
+  openingMeterImagePath String?  @db.VarChar(500)
+  closingMeterImagePath String?  @db.VarChar(500)
+  totalDistance         Decimal? @db.Decimal(10, 2)
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+
+  // Relations
+  user                  User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  files                 File[]
+
+  @@index([userId])
+  @@index([tripDate])
+  @@index([vehicleNumber])
+}
+
+model File {
+  id                    String   @id @default(uuid()) @db.VarChar(36)
+  moduleName            String   @db.VarChar(100)
+  entityId              String   @db.VarChar(36)
+  fileName              String   @db.VarChar(255)
+  filePath              String   @db.VarChar(500)
+  fileType              String   @db.VarChar(50)
+  fileSize              BigInt
+  createdAt             DateTime @default(now())
+
+  // Relations
+  // onDelete/onUpdate NoAction: SQL Server forbids multiple cascade paths to the same
+  // table (File is reachable from User via Pickup/Delivery/Attendance/Trip too), so
+  // automatic cleanup is disabled here and handled in the service layer instead.
+  userId                String?  @db.VarChar(36)
+  user                  User?    @relation(fields: [userId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  pickupId              String?  @db.VarChar(36)
+  pickup                Pickup?  @relation(fields: [pickupId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  deliveryId            String?  @db.VarChar(36)
+  delivery              Delivery? @relation(fields: [deliveryId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  attendanceId          String?  @db.VarChar(36)
+  attendance            Attendance? @relation(fields: [attendanceId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  tripId                String?  @db.VarChar(36)
+  trip                  Trip?    @relation(fields: [tripId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@index([moduleName])
+  @@index([entityId])
+  @@index([userId])
+  @@index([pickupId])
+  @@index([deliveryId])
+  @@index([attendanceId])
+  @@index([tripId])
+}

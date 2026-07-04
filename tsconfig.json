@@ -6,6 +6,9 @@
     "outDir": "./dist",
     "rootDir": "./src",
     "strict": true,
+    // DTO/data-holder classes declare fields without initializers; keep the rest
+    // of strict mode but allow that pattern (matches how the code is written).
+    "strictPropertyInitialization": false,
     "esModuleInterop": true,
     "skipLibCheck": true,
     "forceConsistentCasingInFileNames": true,
